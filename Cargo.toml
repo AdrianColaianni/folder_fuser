@@ -1,0 +1,17 @@
+[package]
+name = "folder_fuser"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = ["glow", "persistence"]
+persistence = ["eframe/persistence", "egui/persistence"]
+glow = ["eframe/glow"]
+
+[dependencies]
+eframe = { version = "0.20.0", path = "../egui/crates/eframe", default-features = false }
+egui = { version = "0.20.0", path = "../egui/crates/egui", features = [
+  "extra_debug_asserts",
+] }
+rfd = "0.10.0"
