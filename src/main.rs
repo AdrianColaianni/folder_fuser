@@ -5,7 +5,7 @@ use egui::ScrollArea;
 use std::vec;
 use std::fs;
 use std::path::Path;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Local};
 
 const BYTE_TO_MB: u64 = 2_u64.pow(20);
 
@@ -120,6 +120,7 @@ impl eframe::App for MyApp {
                                     }
                                 });
                             });
+                            ui.separator();
                         }
                     });
                 });
@@ -161,8 +162,8 @@ fn find_matching(picked_path_a: &String, picked_path_b: &String, matching_files:
             continue;
         }
         let size = entry.metadata().unwrap().len();
-        let date: DateTime<Utc> = entry.metadata().unwrap().modified().unwrap().into();
-        let date = date.to_rfc2822();
+        let date: DateTime<Local> = entry.metadata().unwrap().modified().unwrap().into();
+        let date = date.format("%T %m/%d/%Y").to_string();
         let path = entry.file_name().unwrap().to_str().unwrap().to_owned();
         if path_a_entries.contains(&path) {
             matching_files.push(File{name:path, size:format!("{}Mb", size/BYTE_TO_MB), date})
