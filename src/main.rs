@@ -1,9 +1,13 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 use eframe::egui;
+use egui::ScrollArea;
 use std::vec;
 use std::fs;
 use std::path::Path;
+use chrono::{DateTime, Utc};
+
+const BYTE_TO_MB: u64 = 2_u64.pow(20);
 
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
@@ -18,9 +22,17 @@ fn main() -> Result<(), eframe::Error> {
     )
 }
 
+#[derive(Clone)]
+struct File {
+    name: String,
+    size: String,
+    date: String,
+}
+
 #[derive(Default)]
 struct MyApp {
-    matching_files: Vec<String>,
+    matching_files: Vec<File>,
+    has_run: Option<bool>,
     picked_path_a: Option<String>,
     picked_path_b: Option<String>,
 }
@@ -67,35 +79,49 @@ impl eframe::App for MyApp {
                     if picked_path_a == picked_path_b {
                         ui.label("WARNING:  Folders are identical");
                     } else if ui.button("Find matching files").clicked() {
+                        self.has_run = Some(true);
                         find_matching(picked_path_a, picked_path_b, &mut self.matching_files);
                     };
                 }
             }
 
+            if let Some(has_run) = self.has_run {
+                if has_run && self.matching_files.is_empty() {
+                    ui.label("No matches");
+                }
+            }
+
             if !&self.matching_files.is_empty() {
                 ui.group(|ui| {
-                    for (i, file) in self.matching_files.to_owned().iter().enumerate() {
-                        ui.horizontal(|ui| {
-                            ui.label(file);
-                            ui.add_space(100_f32);
-                            ui.vertical(|ui| {
-                                if ui.button("Remove from A").clicked() {
-                                    let path = String::from(format!("{}/{}", self.picked_path_a.to_owned().unwrap(), file));
-                                    // println!("Removing {file}");
-                                    let path = Path::new(&path);
-                                    fs::remove_file(path).expect("Failed to delete file");
-                                    self.matching_files.remove(i);
-                                }
-                                if ui.button("Remove from B").clicked() {
-                                    let path = String::from(format!("{}/{}", self.picked_path_b.to_owned().unwrap(), file));
-                                    // println!("Removing {file}");
-                                    let path = Path::new(&path);
-                                    fs::remove_file(path).expect("Failed to delete file");
-                                    self.matching_files.remove(i);
-                                }
+                    ScrollArea::vertical().show(ui, |ui| {
+                        for (i, file) in self.matching_files.to_owned().iter().enumerate() {
+                            ui.horizontal(|ui| {
+                                ui.label(file.name.to_owned());
+                                ui.add_space(10_f32);
+                                ui.vertical(|ui| {
+                                    ui.label(file.date.to_owned());
+                                    ui.label(file.size.to_owned());
+                                });
+                                ui.add_space(75_f32);
+                                ui.vertical(|ui| {
+                                    if ui.button("Remove from A").clicked() {
+                                        let path = String::from(format!("{}/{}", self.picked_path_a.to_owned().unwrap(), file.name));
+                                        // println!("Removing {file}");
+                                        let path = Path::new(&path);
+                                        fs::remove_file(path).expect("Failed to delete file");
+                                        self.matching_files.remove(i);
+                                    }
+                                    if ui.button("Remove from B").clicked() {
+                                        let path = String::from(format!("{}/{}", self.picked_path_b.to_owned().unwrap(), file.name));
+                                        // println!("Removing {file}");
+                                        let path = Path::new(&path);
+                                        fs::remove_file(path).expect("Failed to delete file");
+                                        self.matching_files.remove(i);
+                                    }
+                                });
                             });
-                        });
-                    }
+                        }
+                    });
                 });
             }
         });
@@ -103,7 +129,7 @@ impl eframe::App for MyApp {
     }
 }
 
-fn find_matching(picked_path_a: &String, picked_path_b: &String, matching_files: &mut Vec<String>) {
+fn find_matching(picked_path_a: &String, picked_path_b: &String, matching_files: &mut Vec<File>) {
     for _ in 0..matching_files.len() {
         matching_files.pop();
     }
@@ -130,13 +156,16 @@ fn find_matching(picked_path_a: &String, picked_path_b: &String, matching_files:
     }
 
     for entry in fs::read_dir(path_b).unwrap() {
-        let path = entry.unwrap().path();
-        if path.is_dir() {
+        let entry = entry.unwrap().path();
+        if entry.is_dir() {
             continue;
         }
-        let path = path.file_name().unwrap().to_str().unwrap().to_owned();
+        let size = entry.metadata().unwrap().len();
+        let date: DateTime<Utc> = entry.metadata().unwrap().modified().unwrap().into();
+        let date = date.to_rfc2822();
+        let path = entry.file_name().unwrap().to_str().unwrap().to_owned();
         if path_a_entries.contains(&path) {
-            matching_files.push(path)
+            matching_files.push(File{name:path, size:format!("{}Mb", size/BYTE_TO_MB), date})
         }
     }
 }

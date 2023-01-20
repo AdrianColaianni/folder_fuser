@@ -10,6 +10,7 @@ persistence = ["eframe/persistence", "egui/persistence"]
 glow = ["eframe/glow"]
 
 [dependencies]
+chrono = "0.4.23"
 eframe = { version = "0.20.0", path = "../egui/crates/eframe", default-features = false }
 egui = { version = "0.20.0", path = "../egui/crates/egui", features = [
   "extra_debug_asserts",
