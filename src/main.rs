@@ -33,7 +33,7 @@ struct File {
 #[derive(Default)]
 struct MyApp {
     matching_files: Vec<File>,
-    has_run: Option<bool>,
+    has_run: bool,
     picked_path_a: Option<String>,
     picked_path_b: Option<String>,
 }
@@ -79,16 +79,17 @@ impl eframe::App for MyApp {
                 if let Some(picked_path_b) = &self.picked_path_b {
                     if picked_path_a == picked_path_b {
                         ui.label("WARNING:  Folders are identical");
-                    } else if ui.button("Find matching files").clicked() {
-                        self.has_run = Some(true);
-                        find_matching(picked_path_a, picked_path_b, &mut self.matching_files);
-                    };
-                }
-            }
-
-            if let Some(has_run) = self.has_run {
-                if has_run && self.matching_files.is_empty() {
-                    ui.label("No matches");
+                    } else {
+                        ui.horizontal(|ui| {
+                            if ui.button("Find matching files").clicked() {
+                                self.has_run = true;
+                                find_matching(picked_path_a, picked_path_b, &mut self.matching_files);
+                            }
+                            if self.has_run {
+                                ui.label(format!("{} matches", self.matching_files.len()));
+                            }
+                        });
+                    }
                 }
             }
 
