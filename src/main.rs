@@ -1,13 +1,12 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use eframe::egui;
-use egui::ScrollArea;
-use std::vec;
-use std::fs;
-use std::path::Path;
 use chrono::{DateTime, Local};
+use eframe::egui;
+use egui::{ScrollArea, TextStyle};
+use std::fs::{self, DirEntry};
+use std::path::Path;
 
-const BYTE_TO_MB: u64 = 2_u64.pow(20);
+const BYTE_TO_KB: u64 = 1024;
 
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
@@ -25,8 +24,10 @@ fn main() -> Result<(), eframe::Error> {
 #[derive(Clone)]
 struct File {
     name: String,
-    size: String,
-    date: String,
+    size_a: u64,
+    date_a: String,
+    size_b: u64,
+    date_b: String,
 }
 
 #[derive(Default)]
@@ -93,47 +94,71 @@ impl eframe::App for MyApp {
 
             if !&self.matching_files.is_empty() {
                 ui.group(|ui| {
-                    ScrollArea::vertical().show(ui, |ui| {
-                        for (i, file) in self.matching_files.to_owned().iter().enumerate() {
-                            ui.horizontal(|ui| {
-                                ui.label(file.name.to_owned());
-                                ui.add_space(10_f32);
-                                ui.vertical(|ui| {
-                                    ui.label(file.date.to_owned());
-                                    ui.label(file.size.to_owned());
+                    let text_style = TextStyle::Body;
+                    let row_height = ui.text_style_height(&text_style);
+                    let num_rows = self.matching_files.len();
+                    ScrollArea::vertical().auto_shrink([false; 2]).show_rows(
+                        ui,
+                        row_height,
+                        num_rows,
+                        |ui, row_range| {
+                            for i in row_range {
+                                let file = self.matching_files[i].to_owned();
+                                ui.horizontal(|ui| {
+                                    ui.label(file.name.to_owned());
+                                    ui.add_space(10_f32);
+                                    ui.vertical(|ui| {
+                                        // File A
+                                        ui.horizontal(|ui| {
+                                            ui.label("A:");
+                                            ui.label(format!("{} Kb", file.size_a));
+                                            ui.label(file.date_a.to_owned());
+                                            ui.add_space(75_f32);
+                                            if ui.button("Remove from A").clicked() {
+                                                let path = String::from(format!(
+                                                        "{}/{}",
+                                                        self.picked_path_a.to_owned().unwrap(),
+                                                        file.name
+                                                        ));
+                                                // println!("Removing {file}");
+                                                let path = Path::new(&path);
+                                                fs::remove_file(path).expect("Failed to delete file");
+                                                self.matching_files.remove(i);
+                                            }
+                                        });
+                                        ui.separator();
+                                        // File B
+                                        ui.horizontal(|ui| {
+                                            ui.label("B:");
+                                            ui.label(format!("{} Kb", file.size_b));
+                                            ui.label(file.date_b.to_owned());
+                                            ui.add_space(75_f32);
+                                            if ui.button("Remove from B").clicked() {
+                                                let path = String::from(format!(
+                                                        "{}/{}",
+                                                        self.picked_path_b.to_owned().unwrap(),
+                                                        file.name
+                                                        ));
+                                                // println!("Removing {file}");
+                                                let path = Path::new(&path);
+                                                fs::remove_file(path).expect("Failed to delete file");
+                                                self.matching_files.remove(i);
+                                            }
+                                        });
+                                    });
                                 });
-                                ui.add_space(75_f32);
-                                ui.vertical(|ui| {
-                                    if ui.button("Remove from A").clicked() {
-                                        let path = String::from(format!("{}/{}", self.picked_path_a.to_owned().unwrap(), file.name));
-                                        // println!("Removing {file}");
-                                        let path = Path::new(&path);
-                                        fs::remove_file(path).expect("Failed to delete file");
-                                        self.matching_files.remove(i);
-                                    }
-                                    if ui.button("Remove from B").clicked() {
-                                        let path = String::from(format!("{}/{}", self.picked_path_b.to_owned().unwrap(), file.name));
-                                        // println!("Removing {file}");
-                                        let path = Path::new(&path);
-                                        fs::remove_file(path).expect("Failed to delete file");
-                                        self.matching_files.remove(i);
-                                    }
-                                });
-                            });
-                            ui.separator();
-                        }
-                    });
+                                ui.separator();
+                            }
+                        },
+                    );
                 });
             }
         });
-
     }
 }
 
 fn find_matching(picked_path_a: &String, picked_path_b: &String, matching_files: &mut Vec<File>) {
-    for _ in 0..matching_files.len() {
-        matching_files.pop();
-    }
+    matching_files.clear();
 
     let path_a = Path::new(picked_path_a);
     let path_b = Path::new(picked_path_b);
@@ -145,28 +170,49 @@ fn find_matching(picked_path_a: &String, picked_path_b: &String, matching_files:
         panic!("Path B isn't a directory")
     }
 
-    let mut path_a_entries: Vec<String> = vec![String::new(); 0];
+    let path_a_entries: Vec<DirEntry> = fs::read_dir(path_a)
+        .unwrap()
+        .into_iter()
+        .map(|s| s.unwrap())
+        .filter(|s| !s.file_type().unwrap().is_dir())
+        .collect();
 
-    for entry in fs::read_dir(path_a).unwrap() {
-        let path = entry.unwrap().path();
-        if path.is_dir() {
-            continue;
-        }
-        let path = path.file_name().unwrap().to_str().unwrap().to_owned();
-        path_a_entries.push(path);
-    }
+    let path_a_entry_names: Vec<String> = path_a_entries
+        .iter()
+        .map(|s| s.file_name().to_str().unwrap().to_owned())
+        .collect();
 
-    for entry in fs::read_dir(path_b).unwrap() {
-        let entry = entry.unwrap().path();
-        if entry.is_dir() {
-            continue;
-        }
-        let size = entry.metadata().unwrap().len();
-        let date: DateTime<Local> = entry.metadata().unwrap().modified().unwrap().into();
-        let date = date.format("%T %m/%d/%Y").to_string();
-        let path = entry.file_name().unwrap().to_str().unwrap().to_owned();
-        if path_a_entries.contains(&path) {
-            matching_files.push(File{name:path, size:format!("{}Mb", size/BYTE_TO_MB), date})
-        }
+    let path_b_entries: Vec<(&DirEntry, DirEntry)> = fs::read_dir(path_b)
+        .unwrap()
+        .into_iter()
+        .map(|s| s.unwrap())
+        .filter(|s| {
+            !s.file_type().unwrap().is_dir()
+                && path_a_entry_names.contains(&s.file_name().to_str().unwrap().to_owned())
+        })
+        .map(|s| {
+            return (
+                &path_a_entries[path_a_entry_names
+                    .iter()
+                    .position(|r| r == &s.file_name().to_str().unwrap().to_owned())
+                    .unwrap()],
+                s,
+            );
+        })
+        .collect();
+
+    for entry in path_b_entries {
+        let date_a: DateTime<Local> = entry.0.metadata().unwrap().modified().unwrap().into();
+        let date_a = date_a.format("%T %m/%d/%Y").to_string();
+        let date_b: DateTime<Local> = entry.1.metadata().unwrap().modified().unwrap().into();
+        let date_b = date_b.format("%T %m/%d/%Y").to_string();
+        matching_files.push(File {
+            name: entry.0.file_name().to_str().unwrap().to_owned(),
+            size_a: entry.0.metadata().unwrap().len() / BYTE_TO_KB,
+            date_a,
+            size_b: entry.1.metadata().unwrap().len() / BYTE_TO_KB,
+            date_b,
+        })
     }
+    matching_files.sort_unstable_by_key(|s| s.name.to_owned());
 }
