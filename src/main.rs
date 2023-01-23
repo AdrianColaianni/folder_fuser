@@ -104,6 +104,9 @@ impl eframe::App for MyApp {
                         num_rows,
                         |ui, row_range| {
                             for i in row_range {
+                                if i >= self.matching_files.len() {
+                                    break;
+                                }
                                 let file = self.matching_files[i].to_owned();
                                 ui.horizontal(|ui| {
                                     ui.label(file.name.to_owned());
