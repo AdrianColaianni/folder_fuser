@@ -8,17 +8,16 @@ use std::path::Path;
 
 const BYTE_TO_KB: u64 = 1024;
 
-fn main() -> Result<(), eframe::Error> {
+fn main() {
     let options = eframe::NativeOptions {
-        drag_and_drop_support: true,
         initial_window_size: Some(egui::vec2(320.0, 240.0)),
         ..Default::default()
     };
     eframe::run_native(
-        "Native file dialogs and drag-and-drop files",
+        "Folder Fuser 5000!",
         options,
         Box::new(|_cc| Box::new(MyApp::default())),
-    )
+    );
 }
 
 #[derive(Clone)]
@@ -41,8 +40,6 @@ struct MyApp {
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.label("Folder Fuser 5000!");
-
             ui.horizontal(|ui| {
                 if ui.button("Open folder A").clicked() {
                     if let Some(path) = rfd::FileDialog::new().pick_folder() {
