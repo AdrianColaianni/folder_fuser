@@ -2,9 +2,10 @@
 
 use chrono::{DateTime, Local};
 use eframe::egui;
-use egui::{ScrollArea, TextStyle};
+use egui::{ScrollArea, TextStyle, Ui, Vec2};
 use std::fs::{self, DirEntry};
 use std::path::Path;
+use image;
 
 const BYTE_TO_KB: u64 = 1024;
 
@@ -106,7 +107,54 @@ impl eframe::App for MyApp {
                                 }
                                 let file = self.matching_files[i].to_owned();
                                 ui.horizontal(|ui| {
-                                    ui.label(file.name.to_owned());
+                                    let path_a = String::from(format!(
+                                            "{}/{}",
+                                            self.picked_path_a.to_owned().unwrap(),
+                                            file.name
+                                            ));
+                                    let path_a = Path::new(&path_a);
+                                    let path_b = String::from(format!(
+                                            "{}/{}",
+                                            self.picked_path_a.to_owned().unwrap(),
+                                            file.name
+                                            ));
+                                    let path_b = Path::new(&path_b);
+                                    let tooltip_ui = |ui: &mut Ui| {
+                                        ui.horizontal(|ui| {
+                                            match load_image_from_path(path_a) {
+                                                Ok(image) => {
+                                                    let texture: egui::TextureHandle = ui.ctx()
+                                                        .load_texture(
+                                                            "Image A",
+                                                            image,
+                                                            Default::default()
+                                                            );
+                                                    ui.image(&texture, Vec2{x: 400_f32, y: 400_f32});
+                                                },
+                                                Err(_) => {
+                                                    ui.label("Unknown type");
+                                                }
+                                            }
+                                            ui.separator();
+                                            match load_image_from_path(path_b) {
+                                                Ok(image) => {
+                                                    let texture: egui::TextureHandle = ui.ctx()
+                                                        .load_texture(
+                                                            "Image A",
+                                                            image,
+                                                            Default::default()
+                                                            );
+                                                    ui.image(&texture, Vec2{x: 400_f32, y: 400_f32});
+                                                },
+                                                Err(_) => {
+                                                    ui.label("Unknown type");
+                                                }
+                                            }
+                                        });
+                                    };
+
+                                    ui.label(file.name.to_owned())
+                                        .on_hover_ui(tooltip_ui);
                                     ui.add_space(10_f32);
                                     ui.vertical(|ui| {
                                         // File A
@@ -116,14 +164,8 @@ impl eframe::App for MyApp {
                                             ui.label(file.date_a.to_owned());
                                             ui.add_space(75_f32);
                                             if ui.button("Remove from A").clicked() {
-                                                let path = String::from(format!(
-                                                        "{}/{}",
-                                                        self.picked_path_a.to_owned().unwrap(),
-                                                        file.name
-                                                        ));
                                                 // println!("Removing {file}");
-                                                let path = Path::new(&path);
-                                                fs::remove_file(path).expect("Failed to delete file");
+                                                fs::remove_file(path_a).expect("Failed to delete file");
                                                 self.matching_files.remove(i);
                                             }
                                         });
@@ -135,14 +177,7 @@ impl eframe::App for MyApp {
                                             ui.label(file.date_b.to_owned());
                                             ui.add_space(75_f32);
                                             if ui.button("Remove from B").clicked() {
-                                                let path = String::from(format!(
-                                                        "{}/{}",
-                                                        self.picked_path_b.to_owned().unwrap(),
-                                                        file.name
-                                                        ));
-                                                // println!("Removing {file}");
-                                                let path = Path::new(&path);
-                                                fs::remove_file(path).expect("Failed to delete file");
+                                                fs::remove_file(path_b).expect("Failed to delete file");
                                                 self.matching_files.remove(i);
                                             }
                                         });
@@ -216,4 +251,15 @@ fn find_matching(picked_path_a: &String, picked_path_b: &String, matching_files:
         })
     }
     matching_files.sort_unstable_by_key(|s| s.name.to_owned());
+}
+
+fn load_image_from_path(path: &std::path::Path) -> Result<egui::ColorImage, image::ImageError> {
+    let image = image::io::Reader::open(path)?.decode()?;
+    let size = [image.width() as _, image.height() as _];
+    let image_buffer = image.to_rgba8();
+    let pixels = image_buffer.as_flat_samples();
+    Ok(egui::ColorImage::from_rgba_unmultiplied(
+        size,
+        pixels.as_slice(),
+    ))
 }
