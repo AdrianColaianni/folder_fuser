@@ -129,7 +129,10 @@ impl eframe::App for MyApp {
                                                             image,
                                                             Default::default()
                                                             );
-                                                    ui.image(&texture, Vec2{x: 400_f32, y: 400_f32});
+                                                    ui.image(&texture, Vec2{
+                                                        x: 400_f32,
+                                                        y: (400 * texture.size()[1] / texture.size()[0]) as f32,
+                                                    });
                                                 },
                                                 Err(_) => {
                                                     ui.label("Unknown type");
@@ -144,7 +147,10 @@ impl eframe::App for MyApp {
                                                             image,
                                                             Default::default()
                                                             );
-                                                    ui.image(&texture, Vec2{x: 400_f32, y: 400_f32});
+                                                    ui.image(&texture, Vec2{
+                                                        x: 400_f32,
+                                                        y: (400 * texture.size()[1] / texture.size()[0]) as f32,
+                                                    });
                                                 },
                                                 Err(_) => {
                                                     ui.label("Unknown type");
