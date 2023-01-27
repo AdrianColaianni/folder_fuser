@@ -115,7 +115,7 @@ impl eframe::App for MyApp {
                                     let path_a = Path::new(&path_a);
                                     let path_b = String::from(format!(
                                             "{}/{}",
-                                            self.picked_path_a.to_owned().unwrap(),
+                                            self.picked_path_b.to_owned().unwrap(),
                                             file.name
                                             ));
                                     let path_b = Path::new(&path_b);
